@@ -53,11 +53,37 @@ var ALL_ARTICLES = fs.readFileSync('articles.json', 'utf-8').toString().replace(
 
 const server = http.createServer((req, res) =>
                                  {
-                                     parseBodyJson(req, (err, payload) =>
+                                     const contentType = getContentType(req.url);
+                                     if (contentType === "application/json")
+                                     {
+                                         parseBodyJson(req, (err, payload) =>
+                                         {
+                                             const handler = getHandler(req.url);
+
+                                             handler(req, res, payload, (err, result) =>
+                                             {
+                                                 if (err)
+                                                 {
+                                                     res.statusCode = err.code;
+                                                     res.setHeader('Content-Type', 'application/json');
+                                                     res.end(JSON.stringify(err));
+
+                                                     return;
+                                                 }
+
+                                                 res.statusCode = 200;
+
+
+                                                 res.setHeader('Content-Type', 'application/json');
+                                                 res.end(JSON.stringify(result));
+                                             });
+                                         });
+                                     }
+                                     else
                                      {
                                          const handler = getHandler(req.url);
 
-                                         handler(req, res, payload, (err, result) =>
+                                         handler(req, res, (err, result) =>
                                          {
                                              if (err)
                                              {
@@ -69,16 +95,40 @@ const server = http.createServer((req, res) =>
                                              }
 
                                              res.statusCode = 200;
-                                             res.setHeader('Content-Type', 'application/json');
+
+
+                                             res.setHeader('Content-Type', contentType);
                                              res.end(JSON.stringify(result));
                                          });
-                                     });
+                                     }
+
                                  });
 
 server.listen(port, hostname, () =>
 {
     console.log(`Server running at http://${hostname}:${port}/`);
 });
+
+function getContentType(url)
+{
+    if (url === '/')
+    {
+        return 'text/html';
+    }
+    if (url.match(/.html/))
+    {
+        return 'text/html';
+    }
+    if (url.match(/.css/))
+    {
+        return 'text/css';
+    }
+    if (url.match(/.js/))
+    {
+        return 'text/javascript';
+    }
+    return 'application/json';
+}
 
 function getHandler(url)
 {
@@ -257,33 +307,37 @@ function getLogs(req, res, payload, cb)
 
 function getIndex(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data) =>
+    fs.readFile('public/index.html', (err, data) =>
     {
-        cb(null, data.toString());
+        res.end(data);
     });
 }
 
 function getJS(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data) =>
+    fs.readFile('index.js', (err, firstData) =>
     {
-        cb(null, data.toString());
+        fs.readFile('form.js', (err, secondData) =>
+        {
+            res.end(`${firstData}
+                     ${secondData}`);
+        });
     });
 }
 
 function getForm(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data) =>
+    fs.readFile('form.html', (err, data) =>
     {
-        cb(null, data.toString());
+        res.end(data);
     });
 }
 
 function getCss(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data) =>
+    fs.readFile('site.css', (err, data) =>
     {
-        cb(null, data.toString());
+        res.end(data);
     });
 }
 
