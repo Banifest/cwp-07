@@ -7,7 +7,7 @@ const port = 3000;
 
 class Article
 {
-    constructor(id, title="", text="", author="", comments=[])
+    constructor(id, title = "", text = "", author = "", comments = [])
     {
         this.id = id;
         this.title = title;
@@ -20,7 +20,7 @@ class Article
 
 class Comment
 {
-    constructor(id, articleId, text="", author="")
+    constructor(id, articleId, text = "", author = "")
     {
         this.id = id;
         this.articleId = articleId;
@@ -31,48 +31,49 @@ class Comment
 }
 
 const handlers =
-{
-    '/': getIndex,
-    '/index.html': getIndex,
-    '/form.html': getForm,
-    '/app.js': getJS,
-    '/site.css': getCss,
-    '/sum': sum,
-    '/api/article/readall': articleReadAll,
-    '/api/article/read': articleRead,
-    '/api/article/create': articleCreate,
-    '/api/article/update': articleUpdate,
-    '/api/article/delete': articleDelete,
-    '/api/comments/create': commentsCreate,
-    '/api/comments/delete': commentsDelete,
-    '/api/logs': getLogs
-};
+    {
+        '/': getIndex,
+        '/index.html': getIndex,
+        '/form.html': getForm,
+        '/app.js': getJS,
+        '/site.css': getCss,
+        '/sum': sum,
+        '/api/article/readall': articleReadAll,
+        '/api/article/read': articleRead,
+        '/api/article/create': articleCreate,
+        '/api/article/update': articleUpdate,
+        '/api/article/delete': articleDelete,
+        '/api/comments/create': commentsCreate,
+        '/api/comments/delete': commentsDelete,
+        '/api/logs': getLogs
+    };
 
 
-var ALL_ARTICLES = fs.readFileSync('articles.json','utf-8').toString().replace(/\n/g,"").replace(/\r/g,"");
+var ALL_ARTICLES = fs.readFileSync('articles.json', 'utf-8').toString().replace(/\n/g, "").replace(/\r/g, "");
 
 const server = http.createServer((req, res) =>
-{
-    parseBodyJson(req, (err, payload) =>
-    {
-        const handler = getHandler(req.url);
+                                 {
+                                     parseBodyJson(req, (err, payload) =>
+                                     {
+                                         const handler = getHandler(req.url);
 
-        handler(req, res, payload, (err, result) => {
-            if (err)
-            {
-                res.statusCode = err.code;
-                res.setHeader('Content-Type', 'application/json');
-                res.end( JSON.stringify(err) );
+                                         handler(req, res, payload, (err, result) =>
+                                         {
+                                             if (err)
+                                             {
+                                                 res.statusCode = err.code;
+                                                 res.setHeader('Content-Type', 'application/json');
+                                                 res.end(JSON.stringify(err));
 
-                return;
-            }
+                                                 return;
+                                             }
 
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.end( JSON.stringify(result) );
-        });
-    });
-});
+                                             res.statusCode = 200;
+                                             res.setHeader('Content-Type', 'application/json');
+                                             res.end(JSON.stringify(result));
+                                         });
+                                     });
+                                 });
 
 server.listen(port, hostname, () =>
 {
@@ -84,149 +85,157 @@ function getHandler(url)
     return handlers[url] || notFound;
 }
 
-    function sum(req, res, payload, cb)
+function sum(req, res, payload, cb)
+{
+    const result = {c: payload.a + payload.b};
+    cb(null, result);
+}
+
+function articleReadAll(req, res, payload, cb)
+{
+    payload.sortField = !payload.sortField ? 'date' : payload.sortField;
+    payload.sortOrder = !payload.sortOrder ? 'desk' : payload.sortOrder;
+
+    const articles = JSON.parse(ALL_ARTICLES);
+    articles.sort((a, b) =>
+                  {
+                      let mul = 1;
+                      payload.sortOrder === 'asc' ? mul = -1 : mul = 1;
+
+                      if (a[payload.sortField] > b[payload.sortField])
+                      {
+                          return mul;
+                      }
+                      else
+                      {
+                          return -mul;
+                      }
+                  });
+
+    payload.page = !payload.page ? 1 : payload.page;
+    payload.limit = !payload.limit ? 10 : payload.limit;
+    payload.includeDeps = !payload.includeDeps ? false : payload.includeDeps;
+
+    const answer = [];
+    for (let i = (payload.limit - 1) * payload.page - 1; i < articles.length && i < payload.limit * payload.page; i++)
     {
-        const result = {c: payload.a + payload.b};
-        cb(null, result);
+        articles[i].comments = !payload.includeDeps ? undefined : articles[i].comments;
+        answer.push(articles[i]);
     }
 
-    function articleReadAll(req, res, payload, cb)
-    {
-        payload.sortField = !payload.sortField? 'date': payload.sortField;
-        payload.sortOrder = !payload.sortOrder? 'desk': payload.sortOrder;
-
-        const articles = JSON.parse(ALL_ARTICLES);
-        articles.sort((a, b)=>
-                    {
-                        let mul = 1;
-                        payload.sortOrder === 'asc'? mul = -1: mul = 1;
-
-                        if(a[payload.sortField] > b[payload.sortField])
-                        {
-                            return mul;
-                        }
-                        else
-                        {
-                            return -mul;
-                        }
-                    });
-
-        payload.page = !payload.page? 1: payload.page;
-        payload.limit = !payload.limit? 10: payload.limit;
-        payload.includeDeps = !payload.includeDeps? false: payload.includeDeps;
-
-        const answer = [];
-        for(let i = (payload.limit - 1) * payload.page - 1; i<articles.length && i<payload.limit * payload.page;i++)
-        {
-            articles[i].comments = !payload.includeDeps? undefined: articles[i].comments;
-            answer.push(articles[i]);
+    a = {items: answer,
+        meta: {
+            page: payload.page,
+            pages: (articles.length / payload.limit + 1),
+            count: articles.length,
+            limit: payload.limit
         }
+    };
+    cb({code: 200, message: a});
+}
 
-        a = {items: answer, meta: {page:payload.page, pages:(articles.length / payload.limit + 1), count:articles.length, limit:payload.limit}};
-        cb({code: 200, message: a});
-    }
+function articleRead(req, res, payload, cb)
+{
+    const articles = JSON.parse(ALL_ARTICLES);
+    console.log(articles);
+    cb(null, articles[payload.id]);
+}
 
-    function articleRead(req, res, payload, cb)
+function articleCreate(req, res, payload, cb)
+{
+    const articles = JSON.parse(ALL_ARTICLES);
+    const art = new Article(articles[articles.length > 0 ? articles.length - 1 : 0].id + 1,
+        payload.title,
+        payload.text,
+        payload.author, []);
+    articles.push(art);
+
+    ALL_ARTICLES = JSON.stringify(articles);
+    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+    cb(null, JSON.stringify(art));
+}
+
+function articleUpdate(req, res, payload, cb)
+{
+    const articles = JSON.parse(ALL_ARTICLES);
+    for (let iter of articles)
     {
-        const articles = JSON.parse(ALL_ARTICLES);
-        console.log(articles);
-        cb(null, articles[payload.id]);
-    }
-
-    function articleCreate(req, res, payload, cb)
-    {
-        const articles = JSON.parse(ALL_ARTICLES);
-        const art = new Article(articles[articles.length > 0 ? articles.length - 1 : 0].id + 1,
-                                payload.title,
-                                payload.text,
-                                payload.author, []);
-        articles.push(art);
-
-        ALL_ARTICLES = JSON.stringify(articles);
-        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-        cb(null, JSON.stringify(art));
-    }
-
-    function articleUpdate(req, res, payload, cb)
-    {
-        const articles = JSON.parse(ALL_ARTICLES);
-        for (let iter of articles)
+        if (iter.id === payload.id)
         {
-            if (iter.id === payload.id)
-            {
-                iter.title = payload.title;
-                iter.text = payload.text;
-                iter.author = payload.author;
-            }
+            iter.title = payload.title;
+            iter.text = payload.text;
+            iter.author = payload.author;
         }
-        ALL_ARTICLES = JSON.stringify(articles);
-        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-        cb(null, "OK");
     }
+    ALL_ARTICLES = JSON.stringify(articles);
+    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+    cb(null, "OK");
+}
 
-    function articleDelete(req, res, payload, cb)
+function articleDelete(req, res, payload, cb)
+{
+
+    const articles = JSON.parse(ALL_ARTICLES);
+    const newArticles = [];
+    for (let iter of articles)
     {
-
-        const articles = JSON.parse(ALL_ARTICLES);
-        const newArticles = [];
-        for (let iter of articles)
+        if (iter.id !== payload.id)
         {
-            if (iter.id !== payload.id)
-            {
-                newArticles.push(iter);
-            }
+            newArticles.push(iter);
         }
-        ALL_ARTICLES = JSON.stringify(articles);
-        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-        cb(null, "OK");
     }
+    ALL_ARTICLES = JSON.stringify(articles);
+    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+    cb(null, "OK");
+}
 
-    function commentsCreate(req, res, payload, cb)
+function commentsCreate(req, res, payload, cb)
+{
+    const articles = JSON.parse(ALL_ARTICLES);
+
+    for (let iter of articles)
     {
-        const articles = JSON.parse(ALL_ARTICLES);
-
-        for (let iter of articles)
+        if (iter.id === payload.articleId)
         {
-            if (iter.id === payload.articleId)
-            {
-                iter.comments.push(
-                    new Comment(iter.comments[iter.comments.length > 0 ? iter.comments.length - 1 : 0] + 1,
-                        payload.articleId,
-                        payload.text,
-                        payload.author));
-            }
+            iter.comments.push(
+                new Comment(iter.comments[iter.comments.length > 0 ? iter.comments.length - 1 : 0] + 1,
+                    payload.articleId,
+                    payload.text,
+                    payload.author));
         }
-
-        console.log("aa");
-        ALL_ARTICLES = JSON.stringify(articles);
-        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-        cb(null, "OK");
     }
 
-    function commentsDelete(req, res, payload, cb)
-    {
-        const articles = JSON.parse(ALL_ARTICLES);
+    console.log("aa");
+    ALL_ARTICLES = JSON.stringify(articles);
+    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+    cb(null, "OK");
+}
 
-        for (let iter of articles)
+function commentsDelete(req, res, payload, cb)
+{
+    const articles = JSON.parse(ALL_ARTICLES);
+
+    for (let iter of articles)
+    {
+        if (iter.id === payload.articleId)
         {
-            if (iter.id === payload.articleId)
+            let newComments = [];
+            for (subIter of iter.comments)
             {
-                let newComments = [];
-                for (subIter of iter.comments)
+                if (subIter.id !== payload.id)
                 {
-                    if (subIter.id !== payload.id)
-                    {
-                        newComments.push(subIter);
-                    }
+                    newComments.push(subIter);
                 }
-                iter.comments = newComments;
             }
+            iter.comments = newComments;
         }
-
-        ALL_ARTICLES = JSON.stringify(articles);
-        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-        cb(null, "OK");
     }
+
+    ALL_ARTICLES = JSON.stringify(articles);
+    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+    cb(null, "OK");
+}
+
 //catch (err)
 //{
 //    cb({ code: 400, message: 'Request Invalid'});
@@ -234,51 +243,53 @@ function getHandler(url)
 
 function notFound(req, res, payload, cb)
 {
-    cb({ code: 404, message: 'Not found'});
+    cb({code: 404, message: 'Not found'});
 }
 
 
 function getLogs(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data)=>
+    fs.readFile('logs.json', (err, data) =>
     {
-        cb( null,  data.toString());
+        cb(null, data.toString());
     });
 }
 
 function getIndex(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data)=>
+    fs.readFile('logs.json', (err, data) =>
     {
-        cb( null,  data.toString());
+        cb(null, data.toString());
     });
 }
+
 function getJS(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data)=>
+    fs.readFile('logs.json', (err, data) =>
     {
-        cb( null,  data.toString());
-});
+        cb(null, data.toString());
+    });
 }
+
 function getForm(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data)=>
+    fs.readFile('logs.json', (err, data) =>
     {
-        cb( null,  data.toString());
-});
+        cb(null, data.toString());
+    });
 }
 
 function getCss(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data)=>
+    fs.readFile('logs.json', (err, data) =>
     {
-        cb( null,  data.toString());
-});
+        cb(null, data.toString());
+    });
 }
 
 function wrongId(req, res, payload, cb)
 {
-    cb({ code: 888, message: 'Wrong id'});
+    cb({code: 888, message: 'Wrong id'});
 }
 
 
@@ -286,10 +297,10 @@ function parseBodyJson(req, cb)
 {
     let body = [];
 
-    req.on('data', function(chunk)
+    req.on('data', function (chunk)
     {
         body.push(chunk);
-    }).on('end', function()
+    }).on('end', function ()
     {
         body = Buffer.concat(body).toString();
 
