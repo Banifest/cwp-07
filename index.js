@@ -1,5 +1,6 @@
 const http = require('http');
 const fs = require('fs');
+//const express = require('express');
 
 const hostname = '127.0.0.1';
 const port = 3000;
@@ -32,9 +33,11 @@ class Comment
 
 const handlers =
     {
+        '': getIndex,
         '/': getIndex,
         '/index.html': getIndex,
         '/form.html': getForm,
+        '/form.js': getJsForm,
         '/app.js': getJS,
         '/site.css': getCss,
         '/sum': sum,
@@ -49,7 +52,7 @@ const handlers =
     };
 
 
-var ALL_ARTICLES = fs.readFileSync('articles.json', 'utf-8').toString().replace(/\n/g, "").replace(/\r/g, "");
+let ALL_ARTICLES = fs.readFileSync('articles.json', 'utf-8');
 
 const server = http.createServer((req, res) =>
                                  {
@@ -111,7 +114,7 @@ server.listen(port, hostname, () =>
 
 function getContentType(url)
 {
-    if (url === '/')
+    if (url === '/' || url === '')
     {
         return 'text/html';
     }
@@ -127,7 +130,11 @@ function getContentType(url)
     {
         return 'text/javascript';
     }
-    return 'application/json';
+    if (url.match(/api/))
+    {
+        return 'application/json';
+    }
+    return 'text/html';
 }
 
 function getHandler(url)
@@ -255,7 +262,6 @@ function commentsCreate(req, res, payload, cb)
         }
     }
 
-    console.log("aa");
     ALL_ARTICLES = JSON.stringify(articles);
     fs.writeFile('articles.json', ALL_ARTICLES, () => {});
     cb(null, "OK");
@@ -293,7 +299,7 @@ function commentsDelete(req, res, payload, cb)
 
 function notFound(req, res, payload, cb)
 {
-    cb({code: 404, message: 'Not found'});
+    res.end("Not Found");
 }
 
 
@@ -315,13 +321,9 @@ function getIndex(req, res, payload, cb)
 
 function getJS(req, res, payload, cb)
 {
-    fs.readFile('index.js', (err, firstData) =>
+    fs.readFile('index.js', (err, data) =>
     {
-        fs.readFile('form.js', (err, secondData) =>
-        {
-            res.end(`${firstData}
-                     ${secondData}`);
-        });
+        res.end(data);
     });
 }
 
@@ -336,6 +338,14 @@ function getForm(req, res, payload, cb)
 function getCss(req, res, payload, cb)
 {
     fs.readFile('site.css', (err, data) =>
+    {
+        res.end(data);
+    });
+}
+
+function getJsForm(req, res, payload, cb)
+{
+    fs.readFile('form.js', (err, data) =>
     {
         res.end(data);
     });
@@ -356,10 +366,10 @@ function parseBodyJson(req, cb)
         body.push(chunk);
     }).on('end', function ()
     {
+
         body = Buffer.concat(body).toString();
-
+        console.log(body);
         let params = JSON.parse(body);
-
         cb(null, params);
     });
 }
