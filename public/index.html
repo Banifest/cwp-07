@@ -4,7 +4,7 @@
     <meta charset="UTF-8" content="text/javascript">
     <title>Статьи</title>
 
-    <script async src="index.js"></script>
+    <script src="index.js"></script>
     <script async src="../index.js"></script>
 
 
@@ -26,49 +26,22 @@
 <body>
 <div class="article">
 </div>
-<form action="/" method="post">
+
+<script>
+    writeArticles();
+</script>
+
+<form onsubmit="writeArticles();">
     <input type="radio" name="change" value="date" checked title="Дата"/> Дата
     <input type="radio" name="change" value="title"/> Название
     <input type="radio" name="change" value="author"/> Автор
     <br>
     <input type="number" name="pages" value="1">
-    <button type="submit">Сортировать</button>
+    <button type="submit" onclick="writeArticles();">Сортировать</button>
 </form>
 
 
-<script>
-    $.post("/api/article/readall", JSON.stringify({
-                                                      "sortField": "author",
-                                                      "sortOrder": "desk",
-                                                      "page": "1",
-                                                      "limit": "2",
-                                                      "includeDeps": true
-                                                  }), (err, msg, data) =>
-           {
-               console.log(data.responseJSON);
 
-               function temp()
-               {
-
-               }
-
-               data = data.responseJSON.message;
-
-               msgMeta = data.meta;
-               msgItems = data.items;
-               for (let i = 0; i < msgMeta.limit; i++)
-               {
-                   document.body.innerHTML += "<div class=\"article\">"
-                       + `<h1><center>${msgItems[i].title}</center></h1><br>`
-                       + `${msgItems[i].text}<br>`
-                       + `<h4 align="left">Дата изменения: ${(new Date(msgItems[i].date)).toDateString()}</h4><br>`
-                       + `<h4 align="right">Автор: ${msgItems[i].author}</h4>`
-                       + "</div>";
-               }
-           });
-
-
-</script>
 
 </body>
 </html>

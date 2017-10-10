@@ -1,10 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
+<
+!DOCTYPE;
+html >
+< html;
+lang = "en" >
 <head>
-    <meta charset="UTF-8">
-    <title>index</title>
+    < meta;
+charset = "UTF-8" >
+    < title > Добавление;
+статьи < /title>
 </head>
 <body>
-<h1>Hello, world!</h1>
+< form;
+action = "/api/article/create";
+method = "POST" >
+    Загаловок < input;
+type = "text";
+name = "pages";
+value = "1" > < br >
+    Текст;
+статьи < input;
+type = "text";
+name = "pages";
+value = "1" > < br >
+    Автор < input;
+type = "text";
+name = "pages";
+value = "1" > < br >
+    < button;
+type = "submit" > Дабавить < /button>
+    < /form>
 </body>
-</html>
+    < /html>;

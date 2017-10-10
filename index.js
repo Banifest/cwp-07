@@ -1,9 +1,13 @@
 const http = require('http');
 const fs = require('fs');
-//const express = require('express');
+const express = require('express');
+
+const app = express();
+app.use(express.static('public'));
 
 const hostname = '127.0.0.1';
 const port = 3000;
+
 
 
 class Article
@@ -31,283 +35,225 @@ class Comment
     }
 }
 
-const handlers =
-    {
-        '': getIndex,
-        '/': getIndex,
-        '/index.html': getIndex,
-        '/form.html': getForm,
-        '/form.js': getJsForm,
-        '/app.js': getJS,
-        '/site.css': getCss,
-        '/sum': sum,
-        '/api/article/readall': articleReadAll,
-        '/api/article/read': articleRead,
-        '/api/article/create': articleCreate,
-        '/api/article/update': articleUpdate,
-        '/api/article/delete': articleDelete,
-        '/api/comments/create': commentsCreate,
-        '/api/comments/delete': commentsDelete,
-        '/api/logs': getLogs
-    };
+app.listen(3000, function ()
+{
+    console.log('connection');
+});
 
+app.all('*', (req, res) =>
+{
+    console.log(req.headers['referer']);
+    let path = req.headers['referer'];
+    if (path.match('*.html'))
+    {
+        res.contentType('text/html');
+    }
+    if (path.match('/api/'))
+    {
+        res.contentType('application/json');
+    }
+    if (path.match('.js'))
+    {
+        res.contentType('text/javascript');
+    }
+    if (path.match('.css'))
+    {
+        res.contentType('text/css');
+    }
+});
+
+
+app.get('/|/index|/index.html', (req, res) =>
+{
+    res.contentType('text/html');
+    fs.readFile('public/index.html', (err, data) =>
+    {
+        res.send(data);
+    });
+});
+
+const handlers =
+    {};
 
 let ALL_ARTICLES = fs.readFileSync('articles.json', 'utf-8');
 
-const server = http.createServer((req, res) =>
-                                 {
-                                     const contentType = getContentType(req.url);
-                                     if (contentType === "application/json")
-                                     {
-                                         parseBodyJson(req, (err, payload) =>
-                                         {
-                                             const handler = getHandler(req.url);
-
-                                             handler(req, res, payload, (err, result) =>
-                                             {
-                                                 if (err)
-                                                 {
-                                                     res.statusCode = err.code;
-                                                     res.setHeader('Content-Type', 'application/json');
-                                                     res.end(JSON.stringify(err));
-
-                                                     return;
-                                                 }
-
-                                                 res.statusCode = 200;
-
-
-                                                 res.setHeader('Content-Type', 'application/json');
-                                                 res.end(JSON.stringify(result));
-                                             });
-                                         });
-                                     }
-                                     else
-                                     {
-                                         const handler = getHandler(req.url);
-
-                                         handler(req, res, (err, result) =>
-                                         {
-                                             if (err)
-                                             {
-                                                 res.statusCode = err.code;
-                                                 res.setHeader('Content-Type', 'application/json');
-                                                 res.end(JSON.stringify(err));
-
-                                                 return;
-                                             }
-
-                                             res.statusCode = 200;
-
-
-                                             res.setHeader('Content-Type', contentType);
-                                             res.end(JSON.stringify(result));
-                                         });
-                                     }
-
-                                 });
-
-server.listen(port, hostname, () =>
+app.post('/api/article/readall', (req, res) =>
 {
-    console.log(`Server running at http://${hostname}:${port}/`);
+    parseBodyJson(req, (err, payload) =>
+    {
+        res.contentType('application/json');
+        payload.sortField = !payload.sortField ? 'date' : payload.sortField;
+        payload.sortOrder = !payload.sortOrder ? 'desk' : payload.sortOrder;
+
+        const articles = JSON.parse(ALL_ARTICLES);
+        articles.sort((a, b) =>
+                      {
+                          let mul = 1;
+                          payload.sortOrder === 'asc' ? mul = -1 : mul = 1;
+
+                          if (a[payload.sortField] > b[payload.sortField])
+                          {
+                              return mul;
+                          }
+                          else
+                          {
+                              return -mul;
+                          }
+                      });
+
+        payload.page = !payload.page ? 1 : payload.page;
+        payload.limit = !payload.limit ? 10 : payload.limit;
+        payload.includeDeps = !payload.includeDeps ? false : payload.includeDeps;
+
+
+        const answer = [];
+        for (let i = (payload.limit - 1) * payload.page - 1; i < articles.length && i < payload.limit * payload.page; i++)
+        {
+            articles[i].comments = !payload.includeDeps ? undefined : articles[i].comments;
+            answer.push(articles[i]);
+        }
+
+        a = {
+            items: answer, meta: {
+                page: payload.page,
+                pages: Math.trunc((articles.length / payload.limit + 1)),
+                count: Math.trunc(articles.length),
+                limit: Math.trunc(payload.limit)
+            }
+        };
+        res.send(a);
+    });
 });
 
-function getContentType(url)
+app.post('/api/article/read', (req, res) =>
 {
-    if (url === '/' || url === '')
+    parseBodyJson(req, (err, payload) =>
     {
-        return 'text/html';
-    }
-    if (url.match(/.html/))
-    {
-        return 'text/html';
-    }
-    if (url.match(/.css/))
-    {
-        return 'text/css';
-    }
-    if (url.match(/.js/))
-    {
-        return 'text/javascript';
-    }
-    if (url.match(/api/))
-    {
-        return 'application/json';
-    }
-    return 'text/html';
-}
+        const articles = JSON.parse(ALL_ARTICLES);
+        console.log(articles);
+        res.send(articles[payload.id]);
+    });
+});
 
-function getHandler(url)
+app.post('/api/article/create', (req, res) =>
 {
-    return handlers[url] || notFound;
-}
-
-function sum(req, res, payload, cb)
-{
-    const result = {c: payload.a + payload.b};
-    cb(null, result);
-}
-
-function articleReadAll(req, res, payload, cb)
-{
-    payload.sortField = !payload.sortField ? 'date' : payload.sortField;
-    payload.sortOrder = !payload.sortOrder ? 'desk' : payload.sortOrder;
-
-    const articles = JSON.parse(ALL_ARTICLES);
-    articles.sort((a, b) =>
-                  {
-                      let mul = 1;
-                      payload.sortOrder === 'asc' ? mul = -1 : mul = 1;
-
-                      if (a[payload.sortField] > b[payload.sortField])
-                      {
-                          return mul;
-                      }
-                      else
-                      {
-                          return -mul;
-                      }
-                  });
-
-    payload.page = !payload.page ? 1 : payload.page;
-    payload.limit = !payload.limit ? 10 : payload.limit;
-    payload.includeDeps = !payload.includeDeps ? false : payload.includeDeps;
-
-    const answer = [];
-    for (let i = (payload.limit - 1) * payload.page - 1; i < articles.length && i < payload.limit * payload.page; i++)
+    parseBodyJson(req, (err, payload) =>
     {
-        articles[i].comments = !payload.includeDeps ? undefined : articles[i].comments;
-        answer.push(articles[i]);
-    }
+        const articles = JSON.parse(ALL_ARTICLES);
+        const art = new Article(!articles.length ? 0 : articles[articles.length > 0 ? articles.length - 1 : 0].id + 1,
+                                payload.title,
+                                payload.text,
+                                payload.author, []);
+        articles.push(art);
 
-    a = {items: answer,
-        meta: {
-            page: payload.page,
-            pages: (articles.length / payload.limit + 1),
-            count: articles.length,
-            limit: payload.limit
-        }
-    };
-    cb({code: 200, message: a});
-}
+        ALL_ARTICLES = JSON.stringify(articles);
+        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+        res.send(JSON.stringify(art));
+    });
+});
 
-function articleRead(req, res, payload, cb)
+app.post('/api/article/update', (req, res) =>
 {
-    const articles = JSON.parse(ALL_ARTICLES);
-    console.log(articles);
-    cb(null, articles[payload.id]);
-}
-
-function articleCreate(req, res, payload, cb)
-{
-    const articles = JSON.parse(ALL_ARTICLES);
-    const art = new Article(articles[articles.length > 0 ? articles.length - 1 : 0].id + 1,
-        payload.title,
-        payload.text,
-        payload.author, []);
-    articles.push(art);
-
-    ALL_ARTICLES = JSON.stringify(articles);
-    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-    cb(null, JSON.stringify(art));
-}
-
-function articleUpdate(req, res, payload, cb)
-{
-    const articles = JSON.parse(ALL_ARTICLES);
-    for (let iter of articles)
+    parseBodyJson(req, (err, payload) =>
     {
-        if (iter.id === payload.id)
+        const articles = JSON.parse(ALL_ARTICLES);
+        for (let iter of articles)
         {
-            iter.title = payload.title;
-            iter.text = payload.text;
-            iter.author = payload.author;
-        }
-    }
-    ALL_ARTICLES = JSON.stringify(articles);
-    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-    cb(null, "OK");
-}
-
-function articleDelete(req, res, payload, cb)
-{
-
-    const articles = JSON.parse(ALL_ARTICLES);
-    const newArticles = [];
-    for (let iter of articles)
-    {
-        if (iter.id !== payload.id)
-        {
-            newArticles.push(iter);
-        }
-    }
-    ALL_ARTICLES = JSON.stringify(articles);
-    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-    cb(null, "OK");
-}
-
-function commentsCreate(req, res, payload, cb)
-{
-    const articles = JSON.parse(ALL_ARTICLES);
-
-    for (let iter of articles)
-    {
-        if (iter.id === payload.articleId)
-        {
-            iter.comments.push(
-                new Comment(iter.comments[iter.comments.length > 0 ? iter.comments.length - 1 : 0] + 1,
-                    payload.articleId,
-                    payload.text,
-                    payload.author));
-        }
-    }
-
-    ALL_ARTICLES = JSON.stringify(articles);
-    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-    cb(null, "OK");
-}
-
-function commentsDelete(req, res, payload, cb)
-{
-    const articles = JSON.parse(ALL_ARTICLES);
-
-    for (let iter of articles)
-    {
-        if (iter.id === payload.articleId)
-        {
-            let newComments = [];
-            for (subIter of iter.comments)
+            if (iter.id === payload.id)
             {
-                if (subIter.id !== payload.id)
-                {
-                    newComments.push(subIter);
-                }
+                iter.title = payload.title;
+                iter.text = payload.text;
+                iter.author = payload.author;
             }
-            iter.comments = newComments;
         }
-    }
+        ALL_ARTICLES = JSON.stringify(articles);
+        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+        res.send("OK");
+    });
+});
 
-    ALL_ARTICLES = JSON.stringify(articles);
-    fs.writeFile('articles.json', ALL_ARTICLES, () => {});
-    cb(null, "OK");
-}
+app.post('/api/article/delete', (req, res) =>
+{
+    parseBodyJson(req, (err, payload) =>
+    {
+        const articles = JSON.parse(ALL_ARTICLES);
+        const newArticles = [];
+        for (let iter of articles)
+        {
+            if (iter.id !== payload.id)
+            {
+                newArticles.push(iter);
+            }
+        }
+        ALL_ARTICLES = JSON.stringify(newArticles);
+        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+        res.send("DELETE");
+    });
+});
 
-//catch (err)
-//{
-//    cb({ code: 400, message: 'Request Invalid'});
-//}
+app.post('/api/comments/create', (req, res) =>
+{
+    parseBodyJson(req, (err, payload) =>
+    {
+        const articles = JSON.parse(ALL_ARTICLES);
+
+        for (let iter of articles)
+        {
+            if (iter.id === payload.articleId)
+            {
+                iter.comments.push(
+                    new Comment(iter.comments[iter.comments.length > 0 ? iter.comments.length - 1 : 0] + 1,
+                        payload.articleId,
+                        payload.text,
+                        payload.author));
+            }
+        }
+
+        ALL_ARTICLES = JSON.stringify(articles);
+        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+        res.send("OK");
+    });
+});
+
+app.post('/api/comments/delete', (req, res) =>
+{
+    parseBodyJson(req, (err, payload) =>
+    {
+        const articles = JSON.parse(ALL_ARTICLES);
+
+        for (let iter of articles)
+        {
+            if (iter.id === payload.articleId)
+            {
+                let newComments = [];
+                for (subIter of iter.comments)
+                {
+                    if (subIter.id !== payload.id)
+                    {
+                        newComments.push(subIter);
+                    }
+                }
+                iter.comments = newComments;
+            }
+        }
+
+        ALL_ARTICLES = JSON.stringify(articles);
+        fs.writeFile('articles.json', ALL_ARTICLES, () => {});
+        res.send("OK");
+    });
+});
 
 function notFound(req, res, payload, cb)
 {
-    res.end("Not Found");
+    cb({code: 404, message: 'Not found'});
 }
 
 
 function getLogs(req, res, payload, cb)
 {
-    fs.readFile('logs.json', (err, data) =>
+    fs.readFile('logs.log', (err, data) =>
     {
-        cb(null, data.toString());
+        //cb({ null,  data.toString()});
     });
 }
 
@@ -321,7 +267,7 @@ function getIndex(req, res, payload, cb)
 
 function getJS(req, res, payload, cb)
 {
-    fs.readFile('index.js', (err, data) =>
+    fs.readFile('public/index.js', (err, data) =>
     {
         res.end(data);
     });
@@ -329,7 +275,7 @@ function getJS(req, res, payload, cb)
 
 function getForm(req, res, payload, cb)
 {
-    fs.readFile('form.html', (err, data) =>
+    fs.readFile('public/form.html', (err, data) =>
     {
         res.end(data);
     });
@@ -337,7 +283,7 @@ function getForm(req, res, payload, cb)
 
 function getCss(req, res, payload, cb)
 {
-    fs.readFile('site.css', (err, data) =>
+    fs.readFile('public/site.css', (err, data) =>
     {
         res.end(data);
     });
@@ -345,7 +291,7 @@ function getCss(req, res, payload, cb)
 
 function getJsForm(req, res, payload, cb)
 {
-    fs.readFile('form.js', (err, data) =>
+    fs.readFile('public/form.js', (err, data) =>
     {
         res.end(data);
     });
