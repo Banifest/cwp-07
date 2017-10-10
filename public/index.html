@@ -7,17 +7,31 @@
     <script async src="index.js"></script>
     <script async src="../index.js"></script>
 
+
+    <link ref="stylesheet" href="site.css"/>
+    <style type="text/css">
+        .article {
+            width: 200px;
+            background: #ccc;
+            padding: 5px;
+            padding-right: 20px;
+            border: solid 1px black;
+            float: left;
+        }
+    </style>
+
     <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 
 </head>
 <body>
 <div class="article">
-
 </div>
 <form action="/" method="post">
     <input type="radio" name="change" value="date" checked title="Дата"/> Дата
     <input type="radio" name="change" value="title"/> Название
     <input type="radio" name="change" value="author"/> Автор
+    <br>
+    <input type="number" name="pages" value="1">
     <button type="submit">Сортировать</button>
 </form>
 
@@ -33,15 +47,23 @@
            {
                console.log(data.responseJSON);
 
+               function temp()
+               {
+
+               }
+
                data = data.responseJSON.message;
 
                msgMeta = data.meta;
                msgItems = data.items;
                for (let i = 0; i < msgMeta.limit; i++)
                {
-                   document.body.innerHTML += msgItems[i].title + "<br>";
-                   document.body.innerHTML += msgItems[i].text + "<br>";
-                   document.body.innerHTML += msgItems[i].author + "<br>";
+                   document.body.innerHTML += "<div class=\"article\">"
+                       + `<h1><center>${msgItems[i].title}</center></h1><br>`
+                       + `${msgItems[i].text}<br>`
+                       + `<h4 align="left">Дата изменения: ${(new Date(msgItems[i].date)).toDateString()}</h4><br>`
+                       + `<h4 align="right">Автор: ${msgItems[i].author}</h4>`
+                       + "</div>";
                }
            });
 
