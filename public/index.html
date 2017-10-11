@@ -2,46 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" content="text/javascript">
+
     <title>Статьи</title>
+
+    <link rel="stylesheet" type="text/css" href="site.css">
 
     <script src="index.js"></script>
     <script async src="../index.js"></script>
-
-
-    <link ref="stylesheet" href="site.css"/>
-    <style type="text/css">
-        .article {
-            width: 200px;
-            background: #ccc;
-            padding: 5px;
-            padding-right: 20px;
-            border: solid 1px black;
-            float: left;
-        }
-    </style>
-
     <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
-
+    <script>
+        let flag = false;
+        let change;
+    </script>
 </head>
 <body>
-<div class="article">
-</div>
 
 <script>
-    writeArticles();
+    writeArticles("date", "desk", "1", "5", true);
 </script>
 
-<form onsubmit="writeArticles();">
-    <input type="radio" name="change" value="date" checked title="Дата"/> Дата
+<form onsubmit="">
+    <input type="radio" name="change" value="date"/> Дата
     <input type="radio" name="change" value="title"/> Название
     <input type="radio" name="change" value="author"/> Автор
     <br>
-    <input type="number" name="pages" value="1">
-    <button type="submit" onclick="writeArticles();">Сортировать</button>
+    <input type="radio" name="sort" value="asc"/> По возрастанию
+    <input type="radio" name="sort" value="desc"/> По убыванию
+
+
+    <br><input type="number" name="pages" value="1" min="1"/><br>
+    <button type="button" onclick="
+
+
+        for (iter of document.getElementsByName('change'))
+        {
+            if(iter.checked)
+            {
+                change = iter;
+            }
+        }
+        sort = document.getElementsByName('sort')[0].checked ? 'asc' : 'desc';
+        document.body.innerHTML = docBody;
+        writeArticles(
+            change.value,
+            sort,
+            document.getElementsByName('pages')[0].value,
+            '5',
+            true
+    );
+    ">Сортировать
+    </button>
+    <br>
 </form>
 
-
-
+<script>
+    const docBody = document.body.innerHTML;
+    flag = true;
+</script>
 
 </body>
 </html>

@@ -39,29 +39,32 @@ app.listen(3000, function ()
 {
     console.log('connection');
 });
-
+/*
 app.all('*', (req, res) =>
 {
-    console.log(req.headers['referer']);
-    let path = req.headers['referer'];
-    if (path.match('*.html'))
-    {
-        res.contentType('text/html');
-    }
-    if (path.match('/api/'))
-    {
-        res.contentType('application/json');
-    }
-    if (path.match('.js'))
-    {
-        res.contentType('text/javascript');
-    }
-    if (path.match('.css'))
-    {
-        res.contentType('text/css');
+ if(req.headers['referer'])
+ {
+ console.log(req.headers['referer']);
+ let path = req.headers['referer'].toString();
+ if (path.match('/.html'))
+ {
+ res.contentType('text/html');
+ }
+ if (path.match('/api/'))
+ {
+ res.contentType('application/json');
+ }
+ if (path.match('/.js'))
+ {
+ res.contentType('text/javascript');
+ }
+ if (path.match('/.css'))
+ {
+ res.contentType('text/css');
+ }
     }
 });
-
+ */
 
 app.get('/|/index|/index.html', (req, res) =>
 {
@@ -79,6 +82,7 @@ let ALL_ARTICLES = fs.readFileSync('articles.json', 'utf-8');
 
 app.post('/api/article/readall', (req, res) =>
 {
+    res.contentType('text/javascript');
     parseBodyJson(req, (err, payload) =>
     {
         res.contentType('application/json');
@@ -91,7 +95,7 @@ app.post('/api/article/readall', (req, res) =>
                           let mul = 1;
                           payload.sortOrder === 'asc' ? mul = -1 : mul = 1;
 
-                          if (a[payload.sortField] > b[payload.sortField])
+                          if (a[payload.sortField] < b[payload.sortField])
                           {
                               return mul;
                           }
@@ -107,7 +111,7 @@ app.post('/api/article/readall', (req, res) =>
 
 
         const answer = [];
-        for (let i = (payload.limit - 1) * payload.page - 1; i < articles.length && i < payload.limit * payload.page; i++)
+        for (let i = (payload.limit) * (payload.page - 1); i < articles.length && i < payload.limit * payload.page; i++)
         {
             articles[i].comments = !payload.includeDeps ? undefined : articles[i].comments;
             answer.push(articles[i]);
