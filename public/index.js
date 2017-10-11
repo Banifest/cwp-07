@@ -51,3 +51,4 @@ function getAllArticle()
                return `<br><input type="number" name="pages" value="1" min="1" max="${data.responseJSON.meta.pages}"><br>`;
            });
 }
+

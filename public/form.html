@@ -2,17 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>index</title>
+    <title>Добавление статьи</title>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
 </head>
 <body>
-<form action="/api/article/create" method="POST">
+<form onsubmit="" method="POST">
     Загаловок<br>
-    <input type="text" name="pages" value=""><br>
+    <input type="text" name="title" value=""><br>
     Текст статьи<br>
-    <input type="text" name="pages" value=""><br>
+    <input type="text" name="text" value=""><br>
     Автор<br>
-    <input type="text" name="pages" value=""><br>
-    <button type="submit">Дабавить</button>
+    <input type="text" name="author" value=""><br>
+    <button type="button" onclick="
+    $.post('/api/article/create', JSON.stringify({
+    'title': document.getElementsByName('title')[0].value,
+    'author': document.getElementsByName('author')[0].value,
+    'text': document.getElementsByName('text')[0].value,
+    }), (err, msg, data) =>{
+        document.body.innerHTML = 'Успешно добавлен';
+    });
+
+">Дабавить
+    </button>
 </form>
 </body>
 </html>
